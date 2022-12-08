@@ -128,7 +128,7 @@ If you want to send params to a batch file make your Sub vba script looks like t
 ```
 Sub python_to_vba_file()
     Dim filename As String
-    filename = "C:\Users\erikj\Desktop\scripts\python-vba\test.json"
+    filename = "C:\Users\test.json"
     Dim bat_file As String
     Dim param1 As String
     param1 = ""
