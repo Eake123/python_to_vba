@@ -125,8 +125,8 @@ The VBA Class works as follows
     
     
 If you want to send params to a batch file make your Sub vba script looks like this
-
-'''Sub python_to_vba_file()
+```
+Sub python_to_vba_file()
     Dim filename As String
     filename = "C:\Users\erikj\Desktop\scripts\python-vba\test.json"
     Dim bat_file As String
@@ -139,16 +139,16 @@ If you want to send params to a batch file make your Sub vba script looks like t
     get_from_file = True
     Call PythonConverter(filename, bat_file, get_from_file)
     End Sub
- ''' 
+ ```
  Where param1 and param2 are sent to your python script.
  
  Make your batch file look like this to accept them
- '''
+ ```
  @echo off
 set arg1=%1
 set arg2=%2
 "C:\Users\python.exe" "c:\Users\python_to_vba.py" %1 %arg1% %2 %arg2%
-'''
+```
 
    
    
