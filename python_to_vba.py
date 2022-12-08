@@ -2,7 +2,6 @@ import json
 from datetime import datetime
 import pandas as pd
 import subprocess 
-from config_script import config_python_to_vba
 import string
 def int_to_col(column_int:int):
     start_index = 1   #  it can start either at 0 or at 1
@@ -288,10 +287,25 @@ class VBA:
             file.write(json.dumps(self.data))
 
     def __add__(self,__o):
-        self.data.update(__o.data)
+        '''adds the sheet data together. If they share a matching sheet
+        it checks to see if there are different columns and rows. If there are it 
+        adds them to the starting object. If there are conflicting ones it uses the 
+        first ones'''
+        for sheet,col_dict in __o.data.items():
+            if sheet in self.data:
+                for col,row_dict in col_dict.items():
+                    if col in self.data[sheet]:
+                        for row,row_value in row_dict.items():
+                            if row not in self.data[sheet][col]:
+                                self.data[sheet][col].update({row:row_value})
+                    else:
+                        self.data[sheet].update({col:row_dict})
+            else:
+                self.data.update({sheet:col_dict})
+        return self
     
     def __str__(self) -> str:
-        return self.data
+        return str(self.data)
     
     def copy_to_clipboard(self):
         cmd=f'echo {json.dumps(self.data)}|clip'
