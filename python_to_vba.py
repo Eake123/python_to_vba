@@ -3,7 +3,6 @@ from datetime import datetime
 import pandas as pd
 import string
 import subprocess 
-from config_script import config_python_to_vba
 
 class VBA:
     def __init__(self,data,**kwargs) -> None:
