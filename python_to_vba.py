@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 import pandas as pd
 import subprocess 
+from config_script import config_python_to_vba
 import string
 def int_to_col(column_int:int):
     start_index = 1   #  it can start either at 0 or at 1
@@ -179,25 +180,21 @@ class VBA:
             sheet:{}
         }
         if index:
-            col_letter = int_to_col(start_col)   
-            df_column,row = self.add_header(start_row,col_letter,index_name)
-            df_row = df_column[col_letter]
-            df_column[col_letter].update(self.add_rows(data.index,df_row,row))
-            df[sheet].update(df_column)
-            start_col += 1
-
+            df,start_col = self.create_column(df,sheet,start_col,start_row,index_name,data.index)
 
         for col in data.columns:
-            col_letter = int_to_col(start_col)
-            df_column,row = self.add_header(start_row,col_letter,col)
-
-            df_row = df_column[col_letter]
-            df_column[col_letter].update(self.add_rows(data[col],df_row,row))
-
-            df[sheet].update(df_column)
-            start_col += 1
+            df,start_col = self.create_column(df,sheet,start_col,start_row,col,data[col])
         return df
-                
+
+    def create_column(self,df,sheet,start_col,start_row,header_name,data_list):
+        col_letter = int_to_col(start_col)   
+        df_column,row = self.add_header(start_row,col_letter,header_name)
+        df_row = df_column[col_letter]
+        df_column[col_letter].update(self.add_rows(data_list,df_row,row))
+        df[sheet].update(df_column)
+        start_col += 1
+        return df,start_col
+
     def add_header(self,start_row,col_letter,value):
             row = start_row
             df_column = {
