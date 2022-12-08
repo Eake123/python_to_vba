@@ -1,8 +1,23 @@
-import json
-from datetime import datetime
-import pandas as pd
-import string
-import subprocess 
+def int_to_col(column_int:int):
+    start_index = 1   #  it can start either at 0 or at 1
+    letter = ''
+    while column_int > 25 + start_index:   
+        letter += chr(65 + int((column_int-start_index)/26) - 1)
+        column_int = column_int - (int((column_int-start_index)/26))*26
+    letter += chr(65 - start_index + (int(column_int)))
+    return letter
+        
+def col_to_int(column_letter):
+    s = 0
+    for count,i in enumerate(column_letter):
+        if count == len(column_letter) - 1:
+            s += string.ascii_uppercase.index(i) + 1
+        else:
+            s += 26 * (string.ascii_uppercase.index(i) + 1)
+    return s
+
+
+
 
 class VBA:
     def __init__(self,data,**kwargs) -> None:
@@ -22,7 +37,15 @@ class VBA:
         start_row: OPTIONAL, ONLY USED FOR DataFrame and list of DataFrames. It is the row that the DataFrame begins pasting in excel.
         If sending a list of DataFrames you can also use a list, as long as it is equal length to the DataFrames
 
-        NOTE: as of now indexes are not reflected in the vba creation
+        start_col: OPTIONAL, ONLY USED FOR DataFrame and list of DataFrames. ACCEPTS int or string. It is the column that the DataFrame begins pasting in excel.
+        If sending a list of DataFrames you can also use a list, as long as it is equal length to the DataFrames
+
+        index: OPTIONAL, ONLY USED FOR DataFrame and list of DataFrames. ACCEPTS bool or list. If index is True or not defined it will paste the index on the start_col.
+        If sending a list of DataFrames you can also use a list, as long as it is equal length to the DataFrames
+
+        index_name: OPTIONAL, ONLY USED FOR DataFrame and list of DataFrames. ACCEPTS any excel printable d_type. Makes the header name for the index column, if not define it defaults to empty string.
+        If sending a list of DataFrames you can also use a list, as long as it is equal length to the DataFrames
+
 
         
         EXAMPLE with dictionary to add "value" in the first cell
@@ -83,6 +106,7 @@ class VBA:
         l = [df,df2]
 
         v = VBA(l,sheet=sheet)
+        v.copy_to_clipboard()
 
         '''
         if isinstance(data,pd.DataFrame):
@@ -121,34 +145,72 @@ class VBA:
     
     def df_to_dict(self,data:pd.DataFrame,kwargs:dict):
         sheet = kwargs.get('sheet')
-        if sheet == None:
+        if sheet is None:
             raise ValueError('sheet parameter required if passing in DataFrame as data')
         start_row = kwargs.get('start_row')
-        if start_row == None:
+        if start_row is None:
             start_row = 1
+        start_col = kwargs.get('start_col')
+        if start_col is None:
+            start_col = 1
+        elif isinstance(start_col,str):
+            start_col = col_to_int(start_col)
+        
+        index = kwargs.get('index')
+        if index is None:
+            index = True
+        elif isinstance(index,bool) is False:
+            raise ValueError(f'Index must be a bool not {type(index)}')
+
+        index_name = kwargs.get('index_name')
+        if index_name is None:
+            index_name = ''
+            
+            
+
+
         sheet = kwargs.get('sheet')
         df = {
             sheet:{}
         }
-        
-        for count,col in enumerate(data.columns):
+        if index:
+            col_letter = int_to_col(start_col)   
+            df_column,row = self.add_header(start_row,col_letter,index_name)
+            df_row = df_column[col_letter]
+            df_column[col_letter].update(self.add_rows(data.index,df_row,row))
+            df[sheet].update(df_column)
+            start_col += 1
+
+
+        for col in data.columns:
+            col_letter = int_to_col(start_col)
+            df_column,row = self.add_header(start_row,col_letter,col)
+
+            df_row = df_column[col_letter]
+            df_column[col_letter].update(self.add_rows(data[col],df_row,row))
+
+            df[sheet].update(df_column)
+            start_col += 1
+        return df
+                
+    def add_header(self,start_row,col_letter,value):
             row = start_row
-            col_letter = string.ascii_uppercase[count]
             df_column = {
                 col_letter:{
-                    row:col
+                    row:value
                 }
             }
             row += 1
-            df_row = df_column[col_letter]
-            for value in data[col]:
-                df_row.update({
-                    row:value
-                })
-                row += 1
-            df[sheet].update(df_column)
-        return df
-                
+            return df_column,row
+
+    def add_rows(self,data:pd.Series,df_row:dict,row):
+        for value in data:
+            df_row.update({
+                row:value
+            })
+            row += 1
+        return df_row
+            
 
     def multiple_dfs_to_dict(self,data:list,kwargs:dict):
         sheet = kwargs.get('sheet')
@@ -164,11 +226,38 @@ class VBA:
         elif isinstance(start_row,list):
             if len(start_row) != len(data):
                 raise ValueError(f'Not matching lengths of start row and dataframes. start row length is {len(start_row)} and list of dataframes is {len(data)}')
+        start_col = kwargs.get('start_col')
+        if start_col is None:
+            start_col = 1
+        elif isinstance(start_col,str):
+            start_col = col_to_int(start_col)
+        elif isinstance(start_col,list):
+            if len(start_col) != len(data):
+                raise ValueError(f'Not matching lengths of start col and dataframes. start col length is {len(start_col)} and list of dataframes is {len(data)}')
+        index = kwargs.get('index')
+        if index is None:
+            index = True
+        elif isinstance(index,list):
+            if len(index) != len(data):
+                raise ValueError(f'Not matching lengths of index  and dataframes. index  length is {len(index)} and list of dataframes is {len(data)}')
+        elif isinstance(index,bool) is False:
+            raise ValueError(f'Index must be a bool not {type(index)}')
+
+        index_name = kwargs.get('index_name')
+        if index_name is None:
+            index_name = ''
+        elif isinstance(index,list):
+            if len(index) != len(data):
+                raise ValueError(f'Not matching lengths of index_name and dataframes. index_name length is {len(index_name)} and list of dataframes is {len(data)}')
+
         complete_df = {}
         for count,df in enumerate(data):
             params = {
                 'sheet':sheet[count],
-                'start_row' : start_row[count] if isinstance(start_row,list) else start_row
+                'start_row' : start_row[count] if isinstance(start_row,list) else start_row,
+                'start_col':start_col[count] if isinstance(start_col,list) else start_col,
+                'index':index[count] if isinstance(index,list) else index,
+                'index_name':index_name[count] if isinstance(index_name,list) else index_name
             }
             complete_df.update(
                 self.df_to_dict(df,params)
@@ -205,4 +294,3 @@ class VBA:
     def copy_to_clipboard(self):
         cmd=f'echo {json.dumps(self.data)}|clip'
         subprocess.check_call(cmd, shell=True)
-
